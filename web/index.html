@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Watch Together</title>
+<link rel="stylesheet" href="style.css">
+<style id="cue"></style><!-- subtitle look, filled in by the script from the saved settings -->
+</head>
+<body>
+<form id="login" class="center">
+  <div class="gate">
+    <p class="eyebrow">A private screening room</p>
+    <h1>Watch Together</h1>
+    <input id="pw" type="password" autocomplete="current-password" placeholder="Password" aria-label="Password" required autofocus>
+    <button class="go">Enter <span aria-hidden="true">→</span></button>
+    <p id="err" role="alert"></p>
+  </div>
+</form>
+
+<div id="app" hidden>
+  <header class="top">
+    <span class="brand">Watch Together</span>
+    <div class="right">
+      <span id="status" role="status">connecting…</span>
+      <button id="match" class="link" title="Jump to the other person's position">Match position</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="player" hidden>
+      <video id="v" controls playsinline></video>
+      <p id="nowtitle" class="now"></p>
+      <details class="subs">
+        <summary>Subtitles</summary>
+        <div class="body">
+          <div class="preview" aria-hidden="true"><span id="sample">The quick brown fox jumps over the lazy dog</span></div>
+          <div class="controls">
+            <div class="ctrl">
+              <label for="sizeR">Size</label>
+              <input id="sizeR" type="range" min="60" max="300" step="10">
+              <output id="size">100%</output>
+            </div>
+            <div class="ctrl">
+              <label for="borderR">Border</label>
+              <input id="borderR" type="range" min="0" max="4" step="1">
+              <output id="edge">Medium</output>
+            </div>
+            <div class="ctrl">
+              <label for="posR">Position</label>
+              <input id="posR" type="range" min="5" max="90" step="1" title="Height above the bottom of the video">
+              <output id="pos">Auto</output>
+            </div>
+            <div class="ctrl">
+              <span></span>
+              <label class="check"><input id="auto" type="checkbox"> Auto (the browser lifts them above the controls)</label>
+              <span></span>
+            </div>
+            <div class="ctrl">
+              <span>Colour</span>
+              <div class="inline">
+                <button class="swatch" data-color="#ffffff" title="White" aria-label="White"></button>
+                <button class="swatch" data-color="#ffd60a" title="Yellow" aria-label="Yellow"></button>
+                <button class="swatch" data-color="#7ee7ff" title="Cyan" aria-label="Cyan"></button>
+                <button class="swatch" data-color="#9dff8a" title="Green" aria-label="Green"></button>
+                <input id="color" type="color" value="#ffffff" title="Custom colour" aria-label="Custom colour">
+              </div>
+              <span></span>
+            </div>
+            <div class="ctrl">
+              <span>Timing</span>
+              <div class="inline">
+                <button id="earlier" class="link" title="Subtitles appear earlier">−0.5s</button>
+                <button id="later" class="link" title="Subtitles appear later">+0.5s</button>
+              </div>
+              <output id="off">0.0s</output>
+            </div>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section>
+      <p class="label">Library</p>
+      <div id="cards" class="list"></div>
+    </section>
+  </main>
+</div>
+
+<script src="app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+[
+  {
+    "title": "Holiday 2025",
+    "video": "holiday.mp4",
+    "poster": "holiday.jpg",
+    "subs": [
+      { "label": "English", "lang": "en", "file": "holiday.en.vtt" },
+      { "label": "Español", "lang": "es", "file": "holiday.es.vtt" }
+    ]
+  },
+  {
+    "title": "A film with no subtitles",
+    "video": "film.mp4"
+  }
+]

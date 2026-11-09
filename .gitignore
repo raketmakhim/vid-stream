@@ -1,0 +1,13 @@
+# Terraform: state holds the signing key and the site password. Never commit it.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+lambda.zip
+
+# Your own videos, subtitles, posters and library list stay local.
+# Only the example library is shared.
+videos/*
+!videos/library.example.json
+
+node_modules/
