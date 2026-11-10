@@ -1,10 +1,9 @@
 const { DynamoDBClient, PutItemCommand, DeleteItemCommand, ScanCommand } = require('@aws-sdk/client-dynamodb');
 const { ApiGatewayManagementApiClient, PostToConnectionCommand } = require('@aws-sdk/client-apigatewaymanagementapi');
-const { verify, getParams } = require('./lib');
+const { verify, getParams, cleanMessage } = require('./lib');
 
 const db = new DynamoDBClient({});
 const TABLE = process.env.TABLE;
-const TYPES = new Set(['play', 'pause', 'seek', 'load', 'state', 'state-request']); // 'ping' is deliberately absent
 
 const forget = (id) => db.send(new DeleteItemCommand({ TableName: TABLE, Key: { id: { S: id } } }));
 
@@ -27,11 +26,8 @@ exports.handler = async (event) => {
   // $default: relay a whitelisted message to every other connection
   let m;
   try { m = JSON.parse(event.body); } catch { return { statusCode: 400 }; }
-  if (!TYPES.has(m?.type)) return { statusCode: 200 };
-  const msg = { type: m.type };
-  if (typeof m.video === 'string' && m.video.length < 200) msg.video = m.video;
-  if (Number.isFinite(m.time)) msg.time = m.time;
-  if (typeof m.playing === 'boolean') msg.playing = m.playing;
+  const msg = cleanMessage(m);
+  if (!msg) return { statusCode: 200 }; // unknown types and pings
 
   const api = new ApiGatewayManagementApiClient({ endpoint: `https://${domainName}/${stage}` });
   // shortcut: single Scan page, fine for a handful of connections.

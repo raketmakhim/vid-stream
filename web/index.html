@@ -24,17 +24,44 @@
     <div class="right">
       <span id="status" role="status">connecting…</span>
       <button id="match" class="link" title="Jump to the other person's position">Match position</button>
+      <button id="chatBtn" class="icon chatbtn" title="Chat" aria-label="Chat" aria-expanded="false" aria-controls="chat">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-12.2 7.6L3 21l1.5-4.9A8.5 8.5 0 1 1 21 12z"/></svg>
+        <span class="badge" hidden>0</span>
+      </button>
     </div>
   </header>
 
   <main>
     <section id="player" hidden>
-      <video id="v" controls playsinline></video>
+      <div id="stage" class="stage">
+        <video id="v" controlslist="nofullscreen" playsinline></video>
+        <div id="stageHint" class="stage-hint">Choose something to watch</div>
+        <aside id="chat" class="chat" data-pos="br" aria-label="Chat">
+          <div id="log" class="log" role="log" aria-live="polite"></div>
+          <form id="chatForm" class="compose" hidden>
+            <input id="msg" type="text" maxlength="500" placeholder="Write a message, Enter to send" aria-label="Message" autocomplete="off">
+          </form>
+        </aside>
+        <div class="stage-actions">
+          <button id="chatBtnFs" class="icon chatbtn" title="Chat" aria-label="Chat" aria-expanded="false" aria-controls="chat">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8.5 8.5 0 0 1-12.2 7.6L3 21l1.5-4.9A8.5 8.5 0 1 1 21 12z"/></svg>
+            <span class="badge" hidden>0</span>
+          </button>
+          <button id="fsBtn" class="icon" title="Fullscreen" aria-label="Fullscreen">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+          </button>
+        </div>
+      </div>
       <p id="nowtitle" class="now"></p>
-      <details class="subs">
-        <summary>Subtitles</summary>
+      <details id="subs" class="subs" hidden>
+        <summary>Subtitles &amp; chat</summary>
         <div class="body">
-          <div class="preview" aria-hidden="true"><span id="sample">The quick brown fox jumps over the lazy dog</span></div>
+          <div class="preview" aria-hidden="true">
+            <div id="chatSample" class="chat-sample" data-pos="br">
+              <p class="msg"><span class="who">Sam</span><span class="txt">Ready when you are</span></p>
+              <p class="msg me"><span class="who">You</span><span class="txt">Sounds good</span></p>
+            </div>
+            <span id="sample">The quick brown fox jumps over the lazy dog</span></div>
           <div class="controls">
             <div class="ctrl">
               <label for="sizeR">Size</label>
@@ -74,6 +101,32 @@
                 <button id="later" class="link" title="Subtitles appear later">+0.5s</button>
               </div>
               <output id="off">0.0s</output>
+            </div>
+            <p class="label group">Chat</p>
+            <div class="ctrl">
+              <label for="name">Name</label>
+              <input id="name" type="text" maxlength="40" placeholder="Shown to your friend" autocomplete="nickname">
+              <span></span>
+            </div>
+            <div class="ctrl">
+              <label for="chatSize">Size</label>
+              <input id="chatSize" type="range" min="70" max="200" step="10">
+              <output id="chatSizeVal">100%</output>
+            </div>
+            <div class="ctrl">
+              <label for="chatBorder">Border</label>
+              <input id="chatBorder" type="range" min="0" max="4" step="1">
+              <output id="chatEdge">Medium</output>
+            </div>
+            <div class="ctrl">
+              <label for="chatPos">Corner</label>
+              <select id="chatPos">
+                <option value="br">Bottom right</option>
+                <option value="bl">Bottom left</option>
+                <option value="tr">Top right</option>
+                <option value="tl">Top left</option>
+              </select>
+              <span></span>
             </div>
           </div>
         </div>

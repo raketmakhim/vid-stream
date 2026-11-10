@@ -16,6 +16,24 @@ exports.verify = (secret, token, now = Date.now() / 1000) => {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 };
 
+// Which messages the sync relay forwards, and which fields of them. Anything else is dropped.
+// 'ping' (keep-alive) is deliberately absent.
+const TYPES = new Set(['play', 'pause', 'seek', 'load', 'state', 'state-request', 'chat']);
+exports.cleanMessage = (m) => {
+  if (!TYPES.has(m?.type)) return null;
+  const msg = { type: m.type };
+  if (typeof m.video === 'string' && m.video.length < 200) msg.video = m.video;
+  if (Number.isFinite(m.time)) msg.time = m.time;
+  if (typeof m.playing === 'boolean') msg.playing = m.playing;
+  if (m.type === 'chat') {
+    const text = String(m.text ?? '').trim().slice(0, 500);
+    if (!text) return null;
+    msg.text = text;
+    msg.name = String(m.name ?? '').trim().slice(0, 40) || 'Someone';
+  }
+  return msg;
+};
+
 // Custom-policy signed cookies for https://<host>/videos/*
 exports.cfCookies = (privateKey, keyPairId, host, exp) => {
   const policy = JSON.stringify({

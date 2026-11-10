@@ -14,7 +14,7 @@ const MIME = {
   '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.mp4': 'video/mp4', '.webm': 'video/webm', '.vtt': 'text/vtt',
   '.json': 'application/json', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
 };
-const RELAY = new Set(['play', 'pause', 'seek', 'load', 'state', 'state-request']);
+const { cleanMessage } = require('../lambda/lib'); // the same message rules as the real sync Lambda
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
 // ---------- files (with Range support, which video seeking needs) ----------
@@ -110,8 +110,9 @@ function frame(opcode, payload) {
 function relay(from, text) {
   let m;
   try { m = JSON.parse(text); } catch { return; }
-  if (!RELAY.has(m?.type)) return; // includes 'ping'
-  const out = frame(1, Buffer.from(JSON.stringify(m)));
+  const msg = cleanMessage(m);
+  if (!msg) return; // unknown types and pings
+  const out = frame(1, Buffer.from(JSON.stringify(msg)));
   for (const c of clients) if (c !== from) c.write(out);
 }
 

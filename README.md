@@ -48,6 +48,10 @@ Put `film.mp4` and its subtitles (`film.en.vtt` or `film.en.srt`) in `videos/`, 
 
 Open the `url` output (`terraform -chdir=terraform output url`), enter the password, pick a video. Share the URL and password with your friend.
 
+Chat: messages float over the video as plain text and fade after a few seconds. Click a speech-bubble icon (on the video, or in the header) to type: Enter sends, Escape closes, and the history shows while it is open. A badge shows messages you haven't seen. Your name, the text size, the outline and the corner it appears in are under **Subtitles & chat** below the video. Messages are not saved; they disappear when the page is closed.
+
+Fullscreen: use the fullscreen button at the bottom right of the video (or double-click the video), and the chat stays available.
+
 ## Preview locally
 
 ```powershell

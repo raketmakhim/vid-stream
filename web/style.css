@@ -52,7 +52,7 @@ video{display:block;width:100%;max-height:78vh;aspect-ratio:16/9;background:#000
 @media (min-width:780px){.subs .body{grid-template-columns:minmax(260px,340px) 1fr;gap:56px;align-items:start}}
 .preview{container-type:inline-size;position:relative;aspect-ratio:16/9;border-radius:2px;overflow:hidden;
   background:linear-gradient(180deg,#8fb4d9 0%,#dbe6ef 55%,#6f8a70 100%)}
-.preview span{position:absolute;left:4%;right:4%;text-align:center;font-weight:600;line-height:1.25;font-family:system-ui,sans-serif}
+.preview>span{position:absolute;left:4%;right:4%;text-align:center;font-weight:600;line-height:1.25;font-family:system-ui,sans-serif}
 .controls{display:grid;gap:12px}
 .ctrl{display:grid;grid-template-columns:80px 1fr 56px;align-items:center;gap:16px;min-height:36px}
 .ctrl output{text-align:right;font-size:13px;font-variant-numeric:tabular-nums}
@@ -93,6 +93,71 @@ input[type=color]::-moz-color-swatch{border:1px solid var(--line);border-radius:
 .item:hover .t,.item[aria-pressed=true] .t{color:var(--acc)}
 .item[aria-pressed=true] .s{display:block}
 .empty{color:var(--mut);padding:24px 0}
+/* chat: messages float on the video as outlined text. No box and no background; the outline keeps them readable. */
+.icon{position:relative;display:grid;place-items:center;width:36px;height:36px;color:var(--mut);transition:color .2s}
+.icon:hover,.icon[aria-expanded=true]{color:var(--ink)}
+.badge{position:absolute;top:-1px;right:-3px;min-width:17px;height:17px;padding:0 4px;border-radius:99px;
+  background:var(--acc);color:var(--bg);font-size:11px;font-weight:700;line-height:17px;text-align:center}
+
+/* the stage = the video plus everything floating on it; this is the part that goes fullscreen */
+.stage{position:relative;container-type:inline-size}
+video::-webkit-media-controls-fullscreen-button{display:none} /* ours replaces it (Chrome and Edge only) */
+.stage-hint{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;
+  color:rgba(255,255,255,.7);font:400 20px var(--serif)}
+.stage-actions{position:absolute;right:14px;bottom:64px;display:flex;gap:8px;transition:opacity .25s}
+.stage-actions .icon{color:#fff;background:rgba(0,0,0,.5);border-radius:50%}
+.stage-actions .icon:hover{background:rgba(0,0,0,.72)}
+.stage-actions .badge{background:#e3c07d;color:#111}
+.stage.idle .stage-actions{opacity:0;pointer-events:none} /* fades with the player's own controls */
+.stage:fullscreen{display:flex;background:#000}
+.stage:fullscreen video{flex:1;min-width:0;width:auto;height:100%;max-height:none;aspect-ratio:auto;border-radius:0}
+
+/* a message: white text; the outline (set from the Border setting) is added by the script */
+.msg{margin:6px 0 0;font-size:var(--msg-fs);font-weight:600;line-height:1.35;color:#fff;text-shadow:var(--shadow,none);max-height:8em;
+  overflow-wrap:anywhere;transition:opacity .6s,max-height .6s,margin .6s}
+.msg .who{margin-right:.55em;font-size:.82em;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e3c07d}
+.msg.me .who{color:rgba(255,255,255,.72)}
+.msg.gone{opacity:0;max-height:0;margin-top:0;overflow:hidden} /* faded out after a few seconds */
+
+/* the floating stack. It lets clicks through to the video; only the typing line catches them. */
+.chat{--chat-s:1;--chat-w:300px;--msg-fs:calc(14px*var(--chat-s));
+  position:absolute;z-index:3;width:min(var(--chat-w),82%);display:flex;flex-direction:column;pointer-events:none;
+  color:#fff;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+/* each corner caps its height to the room left, so on a small video nothing pokes out of it */
+.chat[data-pos=br]{right:14px;bottom:112px;max-height:calc(100% - 126px);text-align:right} /* above the icons and the control bar */
+.chat[data-pos=bl]{left:14px;bottom:64px;max-height:calc(100% - 76px);text-align:left}
+.chat[data-pos=tr]{right:14px;top:14px;max-height:calc(100% - 78px);text-align:right}
+.chat[data-pos=tl]{left:14px;top:14px;max-height:calc(100% - 78px);text-align:left}
+/* small video (a phone): sit just above the control bar and leave the strip on the right to the icons */
+@container (max-width:520px){
+  .chat{width:min(var(--chat-w),calc(100% - 114px))}
+  .chat[data-pos=br]{right:100px;bottom:56px;max-height:calc(100% - 64px)}
+  .chat[data-pos=bl]{bottom:56px;max-height:calc(100% - 64px)}
+  .chat[data-pos=tr]{right:100px;max-height:calc(100% - 64px)}
+  .chat[data-pos=tl]{max-height:calc(100% - 64px)}
+}
+.log{min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.log.clipped{-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 2.2em);mask-image:linear-gradient(to bottom,transparent 0,#000 2.2em)}
+.chat.open .log{overflow-y:auto;max-height:min(240px,100%);pointer-events:auto;scrollbar-width:none} /* open: scroll the history */
+.compose{margin-top:10px;pointer-events:auto}
+.compose input{width:100%;padding:6px 2px;background:none;border:0;border-bottom:1px solid rgba(255,255,255,.7);
+  box-shadow:0 1px 1px rgba(0,0,0,.5);color:#fff;font:inherit;font-size:var(--msg-fs);font-weight:600;text-shadow:var(--shadow,none);text-align:inherit;outline:none}
+.compose input::placeholder{color:rgba(255,255,255,.8)}
+
+/* the same look, in miniature, inside the settings preview */
+.chat-sample{--chat-s:1;--msg-fs:calc(1.4cqw*var(--chat-s));position:absolute;width:46%;color:#fff;font-family:system-ui,sans-serif}
+.chat-sample[data-pos=br]{right:3%;bottom:20%;text-align:right}
+.chat-sample[data-pos=bl]{left:3%;bottom:20%;text-align:left}
+.chat-sample[data-pos=tr]{right:3%;top:5%;text-align:right}
+.chat-sample[data-pos=tl]{left:3%;top:5%;text-align:left}
+.chat-sample .msg{margin-top:.4em}
+
+/* the chat settings sit with the subtitle settings */
+.group{margin-top:10px}
+.controls input[type=text],.controls select{width:100%;min-width:0;padding:6px 2px;background:none;border:0;border-bottom:1px solid var(--line);
+  color:var(--ink);outline:none;transition:border-color .2s}
+.controls input[type=text]:focus,.controls select:focus{border-color:var(--acc)}
+.controls select option{color:#111}
 @media (prefers-reduced-motion:reduce){.item,.go{transition:none}}
 @media (max-width:600px){
   .top{padding:16px 20px}main{padding:4px 20px 70px;gap:44px}

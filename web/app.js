@@ -87,6 +87,9 @@ function open(e) {
   markCurrent();
   $('nowtitle').textContent = e.title;
   $('player').hidden = false;
+  $('stageHint').hidden = true;
+  $('subs').hidden = false;
+  v.controls = true;
   quiet();
   v.replaceChildren();
   v.src = '/videos/' + encodeURI(e.video);
@@ -135,14 +138,16 @@ const edge = Math.round(Number(sub.border));
 sub.border = Number.isFinite(edge) ? Math.min(4, Math.max(0, edge)) : 2;
 sub.line = sub.line == null ? null : Math.min(95, Math.max(10, Number(sub.line) || 90));
 
+// an outline made of a dark shadow repeated in 16 directions; used for the subtitles (px) and the chat (em, so it scales with the text)
+const outlineOf = (w, unit = 'px', step = 1) => (w
+  ? Array.from({ length: 16 }, (_, i) => {
+    const a = (i * Math.PI) / 8;
+    return `${(w * step * Math.cos(a)).toFixed(3)}${unit} ${(w * step * Math.sin(a)).toFixed(3)}${unit} ${step.toFixed(3)}${unit} #000`;
+  }).join(',')
+  : 'none');
+
 function applyCueStyle() {
-  const w = sub.border; // outline = a dark shadow repeated in 16 directions
-  const outline = w
-    ? Array.from({ length: 16 }, (_, i) => {
-      const a = (i * Math.PI) / 8;
-      return `${(w * Math.cos(a)).toFixed(1)}px ${(w * Math.sin(a)).toFixed(1)}px 1px #000`;
-    }).join(',')
-    : 'none';
+  const outline = outlineOf(sub.border);
   $('cue').textContent = `video::cue{background:transparent;color:${sub.color};font-size:${sub.size}%;` +
     `font-weight:600;font-family:system-ui,sans-serif;text-shadow:${outline}}`;
 
@@ -176,7 +181,11 @@ applyCueStyle();
 // ---------- sync ----------
 // Applying a remote command fires our own play/pause/seeked events; ignore those briefly.
 const quiet = () => { quietUntil = Date.now() + 600; };
-const send = (m) => { if (ws?.readyState === 1) ws.send(JSON.stringify(m)); };
+const send = (m) => {
+  if (ws?.readyState !== 1) return false;
+  ws.send(JSON.stringify(m));
+  return true;
+};
 
 for (const [ev, type] of [['play', 'play'], ['pause', 'pause'], ['seeked', 'seek']]) {
   v.addEventListener(ev, () => { if (Date.now() > quietUntil) send({ type, time: v.currentTime }); });
@@ -201,6 +210,8 @@ const setTime = (t) => { if (Math.abs(v.currentTime - t) > 0.5) v.currentTime = 
 const play = () => v.play().catch(() => setStatus('Press play (browser blocked autoplay)'));
 
 function onMessage(m) {
+  // chat must not call quiet(): that would swallow our own next play/pause for a moment
+  if (m.type === 'chat') { if (typeof m.text === 'string') addChat({ name: String(m.name || 'Someone'), text: m.text }); return; }
   quiet();
   const entry = library.find((x) => x.video === m.video);
   if (m.type === 'load') { if (entry) open(entry); return; }
@@ -229,6 +240,130 @@ function connect() {
 }
 // API Gateway drops idle sockets after 10 min; a ping keeps it alive while paused.
 setInterval(() => send({ type: 'ping' }), 240000);
+
+// ---------- chat: messages float on the video as outlined text (no history: they exist only while the page is open) ----------
+const stage = $('stage');
+let unread = 0;
+const chatIsOpen = () => $('chat').classList.contains('open');
+const showUnread = () => {
+  for (const b of document.querySelectorAll('.badge')) { // one in the header, one on the video
+    b.hidden = unread === 0;
+    b.textContent = unread > 9 ? '9+' : String(unread);
+  }
+  document.title = (unread ? `(${unread}) ` : '') + 'Watch Together';
+};
+
+// Closed: a message floats for 9 seconds and at most 6 show at once. Open: the whole history shows.
+const SHOW_MS = 9000, SHOW_MAX = 6;
+function refreshFade() {
+  const open = chatIsOpen(), now = Date.now();
+  let shown = 0;
+  for (const row of [...$('log').children].reverse()) { // newest first
+    const fresh = now - Number(row.dataset.t) < SHOW_MS && shown < SHOW_MAX;
+    row.classList.toggle('gone', !open && !fresh);
+    if (fresh) shown++;
+  }
+  // too many lines for the space: fade the oldest at the edge instead of cutting a line in half
+  // (measured by position: a box aligned to the bottom doesn't report overflow at its top in scrollHeight)
+  const oldest = [...$('log').children].find((r) => !r.classList.contains('gone'));
+  $('log').classList.toggle('clipped', !open && !!oldest && oldest.getBoundingClientRect().top < $('log').getBoundingClientRect().top - 1);
+}
+setInterval(refreshFade, 1000);
+
+function setChat(open) {
+  if (open) { $('player').hidden = false; $('subs').hidden = false; } // no video yet: show the empty stage so the chat has somewhere to sit
+  $('chat').classList.toggle('open', open);
+  $('chatForm').hidden = !open;
+  for (const b of document.querySelectorAll('.chatbtn')) b.setAttribute('aria-expanded', String(open));
+  if (open) {
+    unread = 0;
+    showUnread();
+    stage.scrollIntoView({ block: 'nearest' }); // opened from the header while the video is off screen
+    $('log').scrollTop = $('log').scrollHeight;
+    $('msg').focus();
+    wake();
+  }
+  refreshFade();
+}
+for (const b of document.querySelectorAll('.chatbtn')) b.onclick = () => setChat(!chatIsOpen());
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('chat').contains(document.activeElement)) setChat(false); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && chatIsOpen()) { unread = 0; showUnread(); } });
+
+// look of the chat (per viewer, saved): text size, outline and corner. The settings live with the subtitle settings.
+const chatLook = { size: 100, border: 2, pos: matchMedia('(max-width:600px)').matches ? 'bl' : 'br' }; // phones: more room bottom left
+try { Object.assign(chatLook, JSON.parse(store.get('chatLook') || '{}')); } catch {}
+chatLook.size = Math.min(200, Math.max(70, Number(chatLook.size) || 100));
+const chatEdge = Math.round(Number(chatLook.border));
+chatLook.border = Number.isFinite(chatEdge) ? Math.min(4, Math.max(0, chatEdge)) : 2;
+if (!['br', 'bl', 'tr', 'tl'].includes(chatLook.pos)) chatLook.pos = 'br';
+
+function applyChatLook() {
+  const shadow = outlineOf(chatLook.border, 'em', 1 / 14); // 1 border step = 1px at the default 14px text
+  for (const c of [$('chat'), $('chatSample')]) { // the real chat and its miniature in the settings preview
+    c.style.setProperty('--chat-s', chatLook.size / 100);
+    c.style.setProperty('--shadow', shadow); // used by each message, so the em units follow that message's own text size
+    c.dataset.pos = chatLook.pos;
+  }
+  $('chat').style.setProperty('--chat-w', Math.round((300 * chatLook.size) / 100) + 'px');
+  $('chatSize').value = chatLook.size;
+  $('chatSizeVal').textContent = chatLook.size + '%';
+  $('chatBorder').value = chatLook.border;
+  $('chatEdge').textContent = EDGES[chatLook.border];
+  $('chatPos').value = chatLook.pos;
+  store.set('chatLook', JSON.stringify(chatLook));
+}
+$('chatSize').oninput = (e) => { chatLook.size = Number(e.target.value); applyChatLook(); };
+$('chatBorder').oninput = (e) => { chatLook.border = Number(e.target.value); applyChatLook(); };
+$('chatPos').onchange = (e) => { chatLook.pos = e.target.value; applyChatLook(); };
+applyChatLook();
+
+$('name').value = store.get('name') || '';
+$('name').oninput = () => store.set('name', $('name').value.trim());
+
+function addChat(m, mine) {
+  const log = $('log');
+  const row = el('p', mine ? 'msg me' : 'msg');
+  row.dataset.t = String(Date.now());
+  row.append(el('span', 'who', mine ? 'You' : m.name), el('span', 'txt', m.text)); // textContent only: never parsed as HTML
+  log.append(row);
+  while (log.children.length > 200) log.firstChild.remove();
+  if (chatIsOpen()) log.scrollTop = log.scrollHeight;
+  if (!mine && (!chatIsOpen() || document.hidden)) { unread++; showUnread(); wake(); } // the badge counts what you haven't seen
+  refreshFade();
+}
+
+const hint = (t) => {
+  $('msg').placeholder = t;
+  setTimeout(() => { $('msg').placeholder = 'Write a message, Enter to send'; }, 2500);
+};
+$('chatForm').onsubmit = (e) => {
+  e.preventDefault();
+  const text = $('msg').value.trim();
+  if (!text) return;
+  if (!send({ type: 'chat', name: $('name').value.trim() || 'Someone', text })) { hint('Not connected – try again in a moment'); return; }
+  addChat({ text }, true); // the relay doesn't echo to the sender, so show our own message here
+  $('msg').value = '';
+};
+
+// ---------- fullscreen: the stage (video + icons + chat popup) goes fullscreen, not just the video ----------
+$('fsBtn').onclick = () => {
+  if (document.fullscreenElement) return document.exitFullscreen();
+  if (stage.requestFullscreen) stage.requestFullscreen().catch(() => {});
+  else v.webkitEnterFullscreen?.(); // iPhone only allows the video itself
+};
+v.addEventListener('dblclick', (e) => { e.preventDefault(); $('fsBtn').click(); }); // double-click is the usual shortcut; keep it on our fullscreen
+document.addEventListener('fullscreenchange', () => wake());
+
+// the icons fade with the player's own controls: shown on movement or while paused, hidden after 2.5s of playing
+let idleTimer;
+const wake = () => {
+  stage.classList.remove('idle');
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => { if (!v.paused) stage.classList.add('idle'); }, 2500);
+};
+for (const ev of ['mousemove', 'pointerdown', 'keydown', 'touchstart']) stage.addEventListener(ev, wake, { passive: true });
+v.addEventListener('play', wake);
+v.addEventListener('pause', wake);
 
 // ---------- resume a previous login ----------
 try {
